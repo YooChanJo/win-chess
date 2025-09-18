@@ -17,7 +17,7 @@ if defined PROCESSOR_ARCHITEW6432 (
 echo Detected architecture: %ARCH%
 
 REM ==============================================================
-REM Reconfigure CMake
+REM Setup CMake
 REM ==============================================================
 echo Running: cmake -S ..\.. -B ..\..\build -G "Visual Studio 17 2022" -A %ARCH%
 call cmake -S ..\.. -B ..\..\build -G "Visual Studio 17 2022" -A %ARCH%

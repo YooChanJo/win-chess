@@ -45,7 +45,7 @@ if /I "%1"=="--Debug" (
 
 echo Configuring %BUILD_TYPE%
 REM ==============================================================
-REM Reconfigure CMake
+REM Setup CMake
 REM ==============================================================
 echo Running: cmake -S ..\.. -B ..\..\build -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -G "MinGW Makefiles"
 call cmake -S ..\.. -B ..\..\build -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -G "MinGW Makefiles"
