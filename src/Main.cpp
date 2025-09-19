@@ -1,8 +1,7 @@
 #include "pch.h"
 #include "Window.h"
 #include "Graphics/Texture.h"
-#include "ChessEngine/ChessEngine.h"
-
+#include "ChessEngine/ChessEngineAPI.h"
 
 using namespace WinChess;
 using namespace WinChess::Graphics;
@@ -13,7 +12,7 @@ int main() {
         Window myWindow;
         ChessEngineAPI::Init(projectRoot);
         Board::BoardState board{};
-        Board::BoardDisplayProps props{};
+        BoardDisplayProps props{};
         props.CellSize = 80.0f;
         while(!myWindow.GetIsClosed()) {
             myWindow.BeginImGui();
