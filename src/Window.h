@@ -50,5 +50,6 @@ namespace WinChess {
         void InitGlad();
         void InitImGui();
         void SetDarkThemeColors() const;
+        void EntireWindowDocking() const;
     };
 }

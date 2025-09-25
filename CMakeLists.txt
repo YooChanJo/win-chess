@@ -103,37 +103,101 @@ if(MSVC)
     set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 endif()
 
-# -------------------------------------------------------------
-# Compiler options
-# -------------------------------------------------------------
+# # -------------------------------------------------------------
+# # Compiler options
+# # -------------------------------------------------------------
+# if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+#     target_compile_options(${PROJECT_NAME} PRIVATE
+#         $<$<CONFIG:Debug>:-g -O0 -Wall -Wextra -Wshadow -Wformat=2 -Wpedantic -DDEBUG>
+#         $<$<CONFIG:Release>:-O3 -march=native -flto -funroll-loops -DNDEBUG -fstrict-aliasing -ffast-math>
+#         $<$<CONFIG:RelWithDebInfo>:-O2 -g -DNDEBUG>
+#         $<$<CONFIG:MinSizeRel>:-Os -DNDEBUG>
+#     )
+#     target_link_options(${PROJECT_NAME} PRIVATE
+#         $<$<CONFIG:Release>:-flto>
+#         $<$<CONFIG:RelWithDebInfo>:-flto>
+#     )
+# elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+#     target_compile_options(${PROJECT_NAME} PRIVATE
+#         $<$<CONFIG:Debug>:/Zi /Od /W4 /DDEBUG /EHsc /permissive->
+#         $<$<CONFIG:Release>:/O2 /Ob2 /GL /DNDEBUG /EHsc /fp:fast>
+#         $<$<CONFIG:RelWithDebInfo>:/O2 /Zi /DNDEBUG /EHsc>
+#         $<$<CONFIG:MinSizeRel>:/O1 /Os /DNDEBUG /EHsc>
+#     )
+#     target_link_options(${PROJECT_NAME} PRIVATE
+#         $<$<CONFIG:Release>:/LTCG>
+#         $<$<CONFIG:RelWithDebInfo>:/LTCG>
+#     )
+# endif()
+# if(MSVC)
+#     target_compile_options(${PROJECT_NAME} PUBLIC /utf-8)
+# endif()
+# Compiler options: tuned for maximal single-thread performance (GCC/Clang + MSVC)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    # Use -Ofast for extra speed if you accept less strict IEEE/standard compliance.
+    # If you prefer strict conformance, replace -Ofast with -O3.
     target_compile_options(${PROJECT_NAME} PRIVATE
+        # Debug - keep sanitizers separate if desired
         $<$<CONFIG:Debug>:-g -O0 -Wall -Wextra -Wshadow -Wformat=2 -Wpedantic -DDEBUG>
-        $<$<CONFIG:Release>:-O3 -march=native -flto -funroll-loops -DNDEBUG -fstrict-aliasing -ffast-math>
-        $<$<CONFIG:RelWithDebInfo>:-O2 -g -DNDEBUG>
-        $<$<CONFIG:MinSizeRel>:-Os -DNDEBUG>
+
+        # Release - aggressive, LTO + thin-LTO enabled by -flto
+        $<$<CONFIG:Release>:-Ofast -march=native -flto -fuse-ld=gold -funroll-loops -DNDEBUG -fstrict-aliasing -ffast-math -fomit-frame-pointer -fno-exceptions -fno-rtti -fwhole-program -fqopt-info-vec -falign-functions=32>
+
+        # RelWithDebInfo: faster but with debug symbols
+        $<$<CONFIG:RelWithDebInfo>:-O3 -g -DNDEBUG -march=native -flto -funroll-loops>
+
+        # MinSizeRel: size optimized
+        $<$<CONFIG:MinSizeRel>:-Os -DNDEBUG -fno-exceptions -fno-rtti>
     )
+    # Linker options: keep LTO on Release/RelWithDebInfo
     target_link_options(${PROJECT_NAME} PRIVATE
         $<$<CONFIG:Release>:-flto>
         $<$<CONFIG:RelWithDebInfo>:-flto>
     )
+
+    # Helpful defines for intrinsics
+    target_compile_definitions(${PROJECT_NAME} PRIVATE $<$<CONFIG:Release>:NDEBUG>)
+
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # MSVC tuned flags. /arch:AVX2 gives vector instruction set (change if target CPU differs).
+    # /GL + /LTCG enable link-time code generation; /fp:fast gives faster FP semantics.
     target_compile_options(${PROJECT_NAME} PRIVATE
+        # Debug
         $<$<CONFIG:Debug>:/Zi /Od /W4 /DDEBUG /EHsc /permissive->
-        $<$<CONFIG:Release>:/O2 /Ob2 /GL /DNDEBUG /EHsc /fp:fast>
-        $<$<CONFIG:RelWithDebInfo>:/O2 /Zi /DNDEBUG /EHsc>
+
+        # Release - tuned for performance
+        $<$<CONFIG:Release>:/O2 /Ob2 /GL /DNDEBUG /EHsc /fp:fast /GR- /EHs-c- /arch:AVX2 /Oi /Ot /Oy /Qpar>
+
+        # RelWithDebInfo
+        $<$<CONFIG:RelWithDebInfo>:/O2 /Zi /DNDEBUG /EHsc /arch:AVX2 /Qpar>
+
+        # MinSizeRel
         $<$<CONFIG:MinSizeRel>:/O1 /Os /DNDEBUG /EHsc>
     )
+
     target_link_options(${PROJECT_NAME} PRIVATE
         $<$<CONFIG:Release>:/LTCG>
         $<$<CONFIG:RelWithDebInfo>:/LTCG>
     )
 endif()
+
+# Force UTF-8 on MSVC builds
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PUBLIC /utf-8)
 endif()
 
-# -------------------------------------------------------------
-# Enable LTO for release-like builds
-# -------------------------------------------------------------
+# Enable Interprocedural Optimization (LTO) for Release-like configs
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO TRUE)
+
+# Optional: enable profile-guided optimization (PGO) helper variables
+option(ENABLE_PGO "Enable Profile Guided Optimization (PGO) build helpers" ON)
+if(ENABLE_PGO)
+    message(STATUS "PGO helpers enabled - see README for run/merge steps")
+    # We don't forcibly inject PGO flags here because workflows vary across compilers.
+    # Recommended workflow (GCC/Clang):
+    #   1) cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_PGO=ON .. 
+    #   2) build instrumented binary: set CFLAGS/LDFLAGS or pass -fprofile-generate
+    #   3) run training workload (perft suite)
+    #   4) rebuild with -fprofile-use (and -fprofile-correction)
+endif()

@@ -41,10 +41,10 @@ namespace WinChess {
         glfwMakeContextCurrent(m_Window);
 
         /* Callback Functions */
-        glfwSetWindowCloseCallback(m_Window, [](GLFWwindow* window){
+        glfwSetWindowCloseCallback(m_Window, [](GLFWwindow* /* window */){
             Window::GetInstance()->CloseWindow();
         });
-        glfwSetWindowSizeCallback(m_Window, [](GLFWwindow* window, int width, int height) {
+        glfwSetWindowSizeCallback(m_Window, [](GLFWwindow* /* window */, int width, int height) {
             Window::GetInstance()->SetWidthAndHeight(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
         });
     }
@@ -127,6 +127,7 @@ namespace WinChess {
 		ImGui_ImplGlfw_NewFrame();
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui::NewFrame();
+		EntireWindowDocking();
 	}
 	void Window::EndImGui() const
 	{
@@ -152,4 +153,26 @@ namespace WinChess {
         glfwSwapBuffers(m_Window);
         glClear(GL_COLOR_BUFFER_BIT);
     }
+	void Window::EntireWindowDocking() const {
+		// Get main viewport
+		ImGuiViewport* viewport = ImGui::GetMainViewport();
+		ImGui::SetNextWindowPos(viewport->Pos);
+		ImGui::SetNextWindowSize(viewport->Size);
+		ImGui::SetNextWindowViewport(viewport->ID);
+
+		ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDocking;
+		windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+		windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+		// Disable window padding so dockspace fills entire thing
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+		ImGui::Begin("MainDockSpace", nullptr, windowFlags);
+		ImGui::PopStyleVar();
+
+		// Dockspace
+		ImGuiID dockspaceId = ImGui::GetID("MyDockSpace");
+		ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+
+		ImGui::End();
+	}
 }
